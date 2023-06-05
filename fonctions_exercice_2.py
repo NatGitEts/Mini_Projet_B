@@ -4,49 +4,61 @@ import matplotlib.pyplot as plt
 def get_params():
 
     p = {}
-    p['L'] = 10
-    p['H'] = 10
-    p['x_c'] = 5
-    p['y_c'] = 5
-    p['n_segment'] = 100
-    p['T0'] = 200 #°C
+    p['L'] = 5
+    p['H'] = 5
+    p['x_c'] = 2.5
+    p['y_c'] = 2.5
+    p['n_segment'] = 20
+    p['T0'] = 10 #°C
     p['k'] = 98.8*(10**-6) #m^2/S
     p['delta_x'] = p['L']/p['n_segment']
     p['delta_y'] = p['H']/p['n_segment']
-    p['sigma'] = 0.2
+    p['sigma'] = 0.6
     p['A'] = 10
 
     return p
-def create_grid(params):
 
-    x = np.linspace(0,params['L'],params['n_segment']+1)
-    y = np.linspace(0,params['H'],params['n_segment']+1)
+def create_grid(p):
+
+    x = np.linspace(0,p['L'],p['n_segment']+1)
+    y = np.linspace(0,p['H'],p['n_segment']+1)
 
     X,Y = np.meshgrid(x,y)
 
     grid = {}
     grid['X'] = X
     grid['Y'] = Y
-
     return grid
 
-def visualisation(grid,p,T):
+def visualisation(grid,T,T_n_plus_1,T_n_plus_2,T_n_plus_3):
 
-    plt.contourf(grid['X'], grid['Y'], T)
-
-    plt.show()
 
     return 0
 
-def calcul_temperature(grid,p):
+def calcul_temperature_point_chaud(grid,p):
 
     temperature = p['A'] * np.exp(-((grid['X'] - p['x_c']) ** 2 / (2 * p['sigma'] ** 2) + (grid['Y'] - p['y_c']) ** 2 / (2 * p['sigma'] ** 2))) + p['T0']
 
+    temperature[:, 0] = p['T0']
+    temperature[:, -1] = p['T0']
+    temperature[0, :] = p['T0']
+    temperature[-1, :] = p['T0']
+
     return temperature
 
-def calcul_RHS(p,T,grid):
+def calcul_RHS(p,T):
 
-    RHS = p['k']*(((T(grid['X']+p['delta_x'],grid['Y']) - 2*T(grid['X'],grid['Y']) + T(grid['X']-p['delta_x'],grid['Y']))/(p['delta_x']**2))+
-                 (((T(grid['X'],grid['Y']+p['delta_y']) - 2*T(grid['X'],grid['Y']) + T(grid['X'],grid['Y']-p['delta_y'])))/(p['delta_y']**2)))
+    T_plus_delta_x = np.roll(T,1,axis=1)
+    T_moins_delta_x = np.roll(T,-1,axis=1)
+    T_plus_delta_y = np.roll(T,1,axis=0)
+    T_moins_delta_y = np.roll(T,-1,axis=0)
+
+    RHS = p['k']*(((T_plus_delta_x - 2*T + T_moins_delta_x)/(p['delta_x']**2))+
+                  ((T_plus_delta_y - 2*T + T_moins_delta_y)/(p['delta_y']**2)))
+
+    RHS[:, 0] = 0
+    RHS[:, -1] = 0
+    RHS[0, :] = 0
+    RHS[-1, :] = 0
 
     return RHS
